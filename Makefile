@@ -10,16 +10,16 @@ lint:
 	mypy ml/*.py *.py
 
 build_data:
-	python ml/1_build.py
+	python ml/build.py
 
 train:
-	python ml/2_train.py
+	python ml/train.py
 
 test:
-	python ml/3_test.py
+	python ml/test.py
 
 retrain:
-	python ml/6_retrain.py
+	python ml/retrain.py
 
 pipeline: build_data train test
 
@@ -33,6 +33,6 @@ docker-run:
 	docker run -p 8000:8000 fashion-mnist-api
 
 test-deployed:
-	python ml/7_test_deployed_model.py
+	python ml/test_deployed_model.py
 
 all: install format lint pipeline

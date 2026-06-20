@@ -31,7 +31,7 @@ jobs:
           command: source ./tools/install.sh
           name: Bağımlılıkları Yükle
       - run:
-          command: source ./venv/bin/activate && python3 ./ml/1_build.py
+          command: source ./venv/bin/activate && python3 ./ml/build.py
           name: Veriyi Hazırla (Build)
       - persist_to_workspace:
           root: .
@@ -47,7 +47,7 @@ jobs:
       - attach_workspace:
           at: .
       - run:
-          command: source ./venv/bin/activate && python3 ./ml/2_train.py
+          command: source ./venv/bin/activate && python3 ./ml/train.py
           name: Modeli Eğit (Train)
       - persist_to_workspace:
           root: .
@@ -61,7 +61,7 @@ jobs:
       - attach_workspace:
           at: .
       - run:
-          command: source ./venv/bin/activate && python3 ./ml/3_test.py
+          command: source ./venv/bin/activate && python3 ./ml/test.py
           name: Modeli Test Et (Quality Gate)
 
   retrain:
@@ -71,7 +71,7 @@ jobs:
       - attach_workspace:
           at: .
       - run:
-          command: source ./venv/bin/activate && python3 ./ml/6_retrain.py
+          command: source ./venv/bin/activate && python3 ./ml/retrain.py
           name: Modeli Yeniden Eğit (Retrain)
       - run:
           name: Hata Durumunda Çalış (Alarm)
@@ -108,7 +108,7 @@ jobs:
           at: .
       - wait-for-render
       - run:
-          command: source ./venv/bin/activate && python3 ./ml/7_test_deployed_model.py
+          command: source ./venv/bin/activate && python3 ./ml/test_deployed_model.py
           name: Canlı API Testi (E2E)
 
 # İş Akışları (Workflows)
