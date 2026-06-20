@@ -1,206 +1,158 @@
 version: 2.1
 
 orbs:
-  python: circleci/python@2.1.1 # Orbs are reusable packages of CircleCI configuration - see https://circleci.com/orbs/ for more details
+  python: circleci/python@2.1.1
 
-# Define custom commands for this config
-# See https://circleci.com/docs/reusing-config/#authoring-reusable-commands
+# Özel komutlarımız
 commands:
   check-python:
     steps:
       - run:
           command: python3 --version
-          name: Check Python version
+          name: Python Sürümünü Kontrol Et
       - run:
           command: pip3 --version
-          name: Check Pip version
-  create-env:
+          name: Pip Sürümünü Kontrol Et
+  wait-for-render:
     steps:
       - run:
-          # Environment variables must be configured in a CircleCI project or context
-          command: |
-            cat \<<- EOF > .env
-            DEPLOY_SERVER_HOSTNAME=$DEPLOY_SERVER_HOSTNAME
-            DEPLOY_SERVER_USERNAME=$DEPLOY_SERVER_USERNAME
-            DEPLOY_SERVER_PASSWORD=$DEPLOY_SERVER_PASSWORD
-            DEPLOY_SERVER_PATH=$DEPLOY_SERVER_PATH
-            EOF
-          name: Create .env file containing secrets
-  wait-5:
-    steps:
-      - run:
-          command: sleep 5
-          name: Wait 5 seconds
+          # Render'ın Docker dosyasını derleyip API'yi ayağa kaldırması için süre tanıyoruz
+          command: sleep 180
+          name: Render Sunucusunun Ayağa Kalkmasını Bekle
 
-# Define custom jobs for this config
-# See: https://circleci.com/docs/jobs-steps/
 jobs:
   install-build:
-    # For running on CircleCI's self-hosted runners
-    # machine: true
-    # resource_class: RUNNER_NAMESPACE/RUNNER_RESOURCE_CLASS # Update this to reflect your self-hosted runner resource class details
-    # For running on CircleCI's compute resources you would replace the above with the following for all jobs:
     docker:
         - image: cimg/python:3.11.4
     steps:
-      - checkout # Check out the code in the project directory
-      - check-python # Invoke command "check-python"
-      - create-env     
+      - checkout
+      - check-python
       - run: 
           command: source ./tools/install.sh
-          name: Run script to install dependencies
+          name: Bağımlılıkları Yükle
       - run:
-          command: source ./venv/bin/activate && python3 ./ml/1_build.py # Activate the Python virtual environment before running Python scripts
-          name: Build the model
+          command: source ./venv/bin/activate && python3 ./ml/1_build.py
+          name: Veriyi Hazırla (Build)
       - persist_to_workspace:
-          # Workspaces let you persist data between jobs - saving time on re-downloading or recreating assets https://circleci.com/docs/workspaces/
-          # Must be an absolute path or relative path from working_directory. This is a directory on the container that is taken to be the root directory of the workspace.
-          # In this example, the workspace root is the working directory (.)
           root: .
           paths:
-            - venv # Persist the Python virtual environment
-            - ml # Persist the ml directory which now includes model and training data
-            - .env # Persist the .env file containing secrets
-            - tools # Persist the tools directory
+            - venv
+            - ml
+            - tools
+
   train:
-    # For running on CircleCI's self-hosted runners - details taken from environment variables
     docker:
         - image: cimg/python:3.11.4
-    steps: # Steps in jobs are run sequentially
+    steps:
       - attach_workspace:
-          # Must be absolute path or relative path from working_directory
-          # In this example, the workspace root is the working directory (.)
           at: .
       - run:
           command: source ./venv/bin/activate && python3 ./ml/2_train.py
-          name: Train the model
+          name: Modeli Eğit (Train)
       - persist_to_workspace:
           root: .
           paths:
-            - ml # Only files in the ml directory have changed and need to be persisted back to the workspace
+            - ml
+
   test:
-    # For running on CircleCI's self-hosted runners - details taken from environment variables
     docker:
         - image: cimg/python:3.11.4
-    steps: # Steps in jobs are run sequentially
+    steps:
       - attach_workspace:
           at: .
       - run:
           command: source ./venv/bin/activate && python3 ./ml/3_test.py
-          name: Test the model
+          name: Modeli Test Et (Quality Gate)
+
   retrain:
-    # For running on CircleCI's self-hosted runners - details taken from environment variables
     docker:
         - image: cimg/python:3.11.4
-
     steps:
       - attach_workspace:
           at: .
       - run:
           command: source ./venv/bin/activate && python3 ./ml/6_retrain.py
-          name: Retrain the model
+          name: Modeli Yeniden Eğit (Retrain)
       - run:
-          # You could trigger custom notifications here so that the person responsible for a particular job is notified via email, Slack, etc.
-          name: Run on fail status
+          name: Hata Durumunda Çalış (Alarm)
           command: |
-              echo "I am result of above failed job" 
+              echo "Yeniden eğitim başarısız oldu! Model kalitesi düştü." 
           when: on_fail
       - persist_to_workspace:
           root: .
           paths:
-            - ml # Only files in the ml directory have changed and need to be persisted back to the workspace
-  package:
-    # For running on CircleCI's self-hosted runners - details taken from environment variables
-    docker:
-        - image: cimg/python:3.11.4
-    steps:
-      - attach_workspace:
-          at: .
-      - run:
-          command: source ./venv/bin/activate && python3 ./ml/4_package.py
-          name: Package the model  
-  deploy:
-    # For running on CircleCI's self-hosted runners - details taken from environment variables
-    docker:
-        - image: cimg/python:3.11.4
+            - ml
 
-    steps:
-      - attach_workspace:
-          at: .
-      - run:
-          command: source ./venv/bin/activate && python3 ./ml/5_deploy.py
-          name: Deploy the model
-  test-deployment:
-    # For running on CircleCI's self-hosted runners - details taken from environment variables
+  deploy:
     docker:
         - image: cimg/python:3.11.4
     steps:
       - attach_workspace:
           at: .
-      - wait-5
+      - run:
+          name: Render'a Dağıtım Sinyali Gönder (Webhook)
+          command: |
+            echo "Render Deploy Hook tetikleniyor..."
+            if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+              echo "UYARI: RENDER_DEPLOY_HOOK çevresel değişkeni bulunamadı. Lütfen CircleCI arayüzünden ekleyin."
+            else
+              curl -X POST $RENDER_DEPLOY_HOOK
+              echo "Dağıtım başarıyla tetiklendi!"
+            fi
+
+  test-deployment:
+    docker:
+        - image: cimg/python:3.11.4
+    steps:
+      - attach_workspace:
+          at: .
+      - wait-for-render
       - run:
           command: source ./venv/bin/activate && python3 ./ml/7_test_deployed_model.py
-          name: Test the deployed model
+          name: Canlı API Testi (E2E)
 
-# Invoke jobs via workflows
-# See: https://circleci.com/docs/workflows/
+# İş Akışları (Workflows)
 workflows:
-  # This workflow does a full build from scratch and deploys the model
   build-deploy:
     jobs:
       - install-build:
           filters:
             branches:
               only:
-                - main # Only run the job when the main branch is updated
+                - main
       - train:
-          requires: # Only run the job when the preceding step in the ML process has been completed so that they are run sequentially
+          requires: 
             - install-build
-      # To demonstrate how to run two tests concurrently, we'll run the same test twice under different names - if either required test fails, the next job that requires them (in this case, package) will not run - https://circleci.com/docs/workflows/#concurrent-job-execution
       - test:
-          name: test-1
           requires: 
             - train
-      - test:
-          name: test-2
-          requires: 
-            - train
-      - package:
-          requires:
-            - test-1
-            - test-2
-      # Do not deploy without manual approval - you can inspect the console output from training and make sure you are happy to deploy
       - deploy:
           requires: 
-            - package 
+            - test 
       - test-deployment:
           requires:
             - deploy
+
   retrain-deploy:
-      # Trigger on a schedule or when retrain branch is updated
-      triggers:
-        - schedule:
-            cron: "0 0 * * *" # Daily
-            filters:
-              branches:
-                only:
-                  - retrain
-      jobs:
-        - install-build
-        - retrain:
-            requires:
-              - install-build
-        # Do not redeploy without manual approval - you can inspect the console output from training and make sure you are happy to deploy the retrained model
-        - hold: # A job that will require manual approval in the CircleCI web application.
-            requires: 
-              - retrain
-            type: approval # This key-value pair will set your workflow to a status of "On Hold"
-        - package:
-            requires:
-              - hold
-        - deploy:
-            requires:
-              - package
-        - test-deployment:
-            requires:
-              - deploy
+    triggers:
+      - schedule:
+          cron: "0 0 * * *" # Her gece 00:00'da
+          filters:
+            branches:
+              only:
+                - retrain
+    jobs:
+      - install-build
+      - retrain:
+          requires:
+            - install-build
+      - hold: 
+          requires: 
+            - retrain
+          type: approval 
+      - deploy:
+          requires:
+            - hold
+      - test-deployment:
+          requires:
+            - deploy

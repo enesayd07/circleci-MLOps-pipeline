@@ -1,15 +1,17 @@
 #!/bin/bash
 
-# Runs the build workflow steps for testing purposes
-
-# Exit when any command fails
+# Geliştirme aşamasında Makine Öğrenimi adımlarını lokalde test eder.
+# Herhangi bir hata olursa işlemi anında durdurur.
 set -e
 
-python3 ./ml/1_build.py
-python3 ./ml/2_train.py
-python3 ./ml/3_test.py
-python3 ./ml/4_package.py
-python3 ./ml/5_deploy.py
-sleep 5 # Wait for the model to be deployed
-python3 ./ml/7_test_deployed_model.py
-echo "Success!"
+echo "1. Veri Hazırlama Başlıyor..."
+python3 ./ml/build.py
+
+echo "2. Model Eğitimi Başlıyor..."
+python3 ./ml/train.py
+
+echo "3. Kalite Kontrol (Test) Başlıyor..."
+python3 ./ml/test.py
+
+echo "Başarılı! Model lokal ortamda hatasız eğitildi ve kalite kontrolü geçti."
+echo "Not: Dağıtım (Deploy) ve E2E test işlemleri CircleCI ve Render üzerinden otomatik yapılacaktır."
