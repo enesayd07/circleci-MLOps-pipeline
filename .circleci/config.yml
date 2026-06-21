@@ -16,9 +16,10 @@ commands:
   wait-for-render:
     steps:
       - run:
-          # Render'ın Docker dosyasını derleyip API'yi ayağa kaldırması için süre tanıyoruz
-          command: sleep 180
-          name: Render Sunucusunun Ayağa Kalkmasını Bekle
+          # Python scriptimizde zaten uyanma kontrolü (retry) var, 
+          # ancak Render'ın Docker imajını inşa etmesi için ilk 60 saniye avans veriyoruz.
+          command: sleep 60
+          name: Render Sunucusunun Ayağa Kalkması İçin Avans Süresi
 
 jobs:
   install-build:
@@ -39,6 +40,7 @@ jobs:
             - venv
             - ml
             - tools
+            - main.py
 
   train:
     docker:
