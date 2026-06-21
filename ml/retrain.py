@@ -8,10 +8,10 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropou
 
 class Retrain:
     DATA_DIR: str = "training_data"
-    EPOCHS: int = 5 # Simülasyon olduğu için kısa tutuyoruz
+    EPOCHS: int = 5 
     BATCH_SIZE: int = 64
-    MIN_REQUIRED_ACCURACY: float = 0.95 # Bilerek ÇOK YÜKSEK tutuyoruz ki CircleCI'da başarısız olsun!
-    DRIFT_NOISE: float = 0.5 # Veriyi bozacak aşırı gürültü (Data Drift simülasyonu)
+    MIN_REQUIRED_ACCURACY: float = 0.95 
+    DRIFT_NOISE: float = 0.5 
 
     def __init__(self, base_path: str) -> None:
         self.base_path: str = base_path
@@ -62,7 +62,6 @@ class Retrain:
     def execute_nightly_job(self) -> None:
         train_x, train_y, test_x, test_y = self.load_data()
         
-        # Sadece eğitim verisini bozuyoruz ki model kötü öğrensin, ama test verisi gerçek kalsın
         corrupted_train_x = self.simulate_data_drift(train_x)
         
         new_model = self.retrain_model(corrupted_train_x, train_y)

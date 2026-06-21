@@ -22,7 +22,6 @@ class Train:
         self.data_path: str = os.path.join(self.base_path, self.DATA_DIR)
         self.model_path: str = os.path.join(self.base_path, self.MODEL_DIR)
 
-    # Diske kaydedilmiş olan eğitim, doğrulama ve test verilerini yükler
     def load_files(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         train_x: np.ndarray = np.load(os.path.join(self.data_path, "train_images.npy"))
         train_y: np.ndarray = np.load(os.path.join(self.data_path, "train_labels.npy"))
@@ -32,7 +31,6 @@ class Train:
         test_y: np.ndarray = np.load(os.path.join(self.data_path, "test_labels.npy"))
         return train_x, train_y, val_x, val_y, test_x, test_y
 
-    # Azaltılmış veya dengesiz sınıfları bulup modele onlara daha çok odaklanmasını söyler
     def calculate_weights(self, y: np.ndarray) -> Dict[int, float]:
         class_weights: Dict[int, float] = {}
         total_samples: int = len(y)
@@ -44,23 +42,18 @@ class Train:
                 class_weights[i] = 1.0
         return class_weights
 
-    # Klasik ve anlaşılır formatta, adım adım Derin CNN mimarisini inşa eder
     def create_model(self) -> Sequential:
         model = Sequential()
 
-        # 1. Evrişim Bloğu (Giriş)
         model.add(Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(28, 28, 1)))
         model.add(MaxPooling2D((2, 2)))
 
-        # 2. Evrişim Bloğu (Derinleşme)
         model.add(Conv2D(64, (3, 3), activation='relu', padding='same'))
         model.add(MaxPooling2D((2, 2)))
 
-        # 3. Evrişim Bloğu (Daha Fazla Derinleşme)
         model.add(Conv2D(128, (3, 3), activation='relu', padding='same'))
         model.add(MaxPooling2D((2, 2)))
 
-        # Klasik Sınıflandırma Bloğu
         model.add(Flatten())
         model.add(Dense(128, activation='relu'))
         model.add(Dropout(0.3)) # Ezberlemeyi önler
@@ -72,20 +65,17 @@ class Train:
                       metrics=['accuracy'])
         return model
 
-    # Model ezberlemeye veya tıkanmaya başladığında eğitimi durduran alarmlar
     def setup_callbacks(self) -> List[Any]:
         early_stop = EarlyStopping(monitor='val_loss', patience=self.PATIENCE_STOP, restore_best_weights=True)
         reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=self.PATIENCE_LR, min_lr=1e-6)
         return [early_stop, reduce_lr]
 
-    # Modelin daha önce hiç görmediği kör test verisindeki genel başarısını ölçer
     def test_model(self, model: Sequential, x_test: np.ndarray, y_test: np.ndarray) -> None:
         print("\n--- Kör Test (Test Seti) Değerlendirmesi ---")
         loss, accuracy = model.evaluate(x_test, y_test, verbose=0)
         print(f"Test Kaybı (Loss): {loss:.4f}")
         print(f"Test Başarımı (Accuracy): {accuracy:.4f}")
 
-    # Tüm eğitim ve değerlendirme aşamalarını sırasıyla çalıştırır
     def run_all(self) -> None:
         train_x, train_y, val_x, val_y, test_x, test_y = self.load_files()
         
