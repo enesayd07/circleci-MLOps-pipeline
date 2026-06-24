@@ -1,10 +1,10 @@
-# 1. Temel İşletim Sistemi ve Python Sürümü (Hafif bir sürüm seçiyoruz)
+# 1. Temel İşletim Sistemi ve Python Sürümü 
 FROM python:3.11-slim
 
-# 2. Çalışma Dizinini Ayarla (Konteynerin içindeki klasör)
+# 2. Çalışma Dizinini Ayarla 
 WORKDIR /app
 
-# 3. Sistem kütüphanelerini güncelle (Görüntü işleme kütüphaneleri için bazen gerekebilir)
+# 3. Sistem kütüphanelerini güncelle 
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
@@ -17,13 +17,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 5. Tüm Proje Dosyalarını Kopyala
 COPY . .
 
-# -- YENİ EKLENEN KISIM --
-# 5.5 Render inşası sırasında modeli baştan eğitip diskte oluşturmasını sağlıyoruz.
-# Bu işlem Render'ın build süresini 1 dakika uzatır ama modeli sunucunun içine gömer.
+# Modeli baştan eğitip diske kaydettiriyoruz
 RUN python ml/build.py && python ml/train.py
 
 # 6. Render'ın uygulamayı dışarı açması için Port ayarı
 EXPOSE 8000
 
-# 7. Uygulamayı Başlatma Komutu (FastAPI'yi uvicorn ile başlatır)
+# 7. Uygulamayı Başlatma Komutu 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
